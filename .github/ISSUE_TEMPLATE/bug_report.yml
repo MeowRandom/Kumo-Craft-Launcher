@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible launcher problem
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include account tokens or other credentials.
+  - type: input
+    id: version
+    attributes:
+      label: Launcher version
+      placeholder: "1.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Windows and .NET version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log excerpt
+      description: Remove access tokens and personal information before pasting logs.

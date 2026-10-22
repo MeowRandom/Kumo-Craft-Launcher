@@ -1,0 +1,12 @@
+bin/
+obj/
+publish/
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.log
+*.exe
+*.zip
+.minecraft/

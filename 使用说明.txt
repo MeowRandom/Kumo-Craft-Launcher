@@ -1,0 +1,35 @@
+库莫 Kumo 1.0 使用说明
+
+运行方式
+1. 解压 Kumo Craft Launcher.zip。
+2. 双击 Kumo Craft Launcher.exe。
+3. 不需要安装 .NET，也不需要管理员权限。
+
+系统要求
+- Windows 10 或 Windows 11，64 位。
+- 版本下载、Mod 下载和正版登录需要联网。
+- 3D 皮肤预览需要 Microsoft Edge WebView2 Runtime。新版 Windows 通常已经自带。
+  如果没有，可从 https://developer.microsoft.com/microsoft-edge/webview2/ 安装。
+
+数据位置
+- 默认游戏目录：启动器所在文件夹下的 .minecraft。
+- 可以指定其他父目录，Kumo 会在其中创建并使用 .minecraft 文件夹。
+- 设置会自动保存。
+- “设置 → 全局游戏设置”可以同步语言、视距、帧率、GUI 缩放、全屏和完整按键方案到所有版本。
+
+账号
+- 正版登录使用 Microsoft 账户，必须完成 Xbox Live 验证，这是 Minecraft 官方的登录要求。
+- 离线登录可以直接创建离线玩家名。
+- 正版外观会缓存到本地，打开外观界面时会先加载缓存。
+
+整合包
+- 支持 Modrinth .mrpack、CurseForge 整合包 ZIP，以及 PCL2 导出的整合包 ZIP。
+- 可以直接把整合包拖到启动器窗口安装。
+
+提示
+- 如果 Windows SmartScreen 提示未知发布者，这是未进行商业代码签名的个人发布版本。
+  可以点击“更多信息”，确认文件来源后选择“仍要运行”。
+- 不要用管理员身份运行，否则从桌面拖放整合包可能失效。
+
+Kumo 与 Mojang Studios、Microsoft、Modrinth、CurseForge 或 MC百科没有隶属关系。
+Minecraft 是 Mojang Studios 的商标。

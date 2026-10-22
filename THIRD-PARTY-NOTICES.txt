@@ -1,0 +1,40 @@
+Kumo includes SkiaSharp 3.119.1 for decoding WebP cover images.
+
+SkiaSharp
+Copyright (c) Microsoft Corporation.
+Licensed under the MIT License.
+https://github.com/mono/SkiaSharp
+
+Skia
+Copyright (c) Google LLC.
+Licensed under the BSD 3-Clause License.
+https://skia.org/
+
+The full license texts are included in the corresponding NuGet packages under
+local-nuget/ and in the published application's license metadata.
+
+Loader artwork
+--------------
+
+Kumo includes official loader artwork from the FabricMC/fabric-installer,
+QuiltMC/quilt-installer, MinecraftForge/MinecraftForge, and neoforged/NeoForge
+repositories. Source revisions, paths, and project licenses are listed in
+Assets/Loaders/README.md.
+
+Those names and logos remain trademarks of their respective owners. Kumo
+is not affiliated with or endorsed by any loader project.
+
+CurseForge metadata
+-------------------
+
+CurseForge project and file metadata is accessed through the public CFWidget
+API. CurseForge and related names are trademarks of their respective owners.
+Kumo is not affiliated with or endorsed by CurseForge or Overwolf.
+
+MC百科 descriptions
+-------------------
+
+Chinese Mod titles and short description excerpts may be matched from public
+MC百科 pages. Open community content on MC百科 is published under the
+Creative Commons BY-NC-SA 3.0 license and remains subject to that license.
+https://www.mcmod.cn/

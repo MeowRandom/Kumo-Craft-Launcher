@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Kumo</AssemblyName>
+    <RootNamespace>Kumo</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
+    <AssemblyTitle>库莫 Kumo Minecraft Launcher</AssemblyTitle>
+    <Description>Kumo is a lightweight Minecraft launcher with Microsoft and offline sign-in.</Description>
+    <Authors>Kumo</Authors>
+    <NeutralLanguage>zh-Hans</NeutralLanguage>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Assets\logo.png" />
+    <Resource Include="Assets\logo.png" />
+    <None Remove="Assets\logo-mark.png" />
+    <Resource Include="Assets\logo-mark.png" />
+    <None Remove="Assets\Nav*.png" />
+    <Resource Include="Assets\Nav*.png" />
+    <None Remove="Assets\AppreciationCode.jpg" />
+    <Resource Include="Assets\AppreciationCode.jpg" />
+    <None Remove="Assets\Loaders\*.png" />
+    <EmbeddedResource Include="Assets\Loaders\*.png">
+      <LogicalName>Kumo.Assets.Loaders.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\vanilla.png">
+      <LogicalName>Kumo.Assets.Loaders.vanilla.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\OptiFineInstallerBridge.class">
+      <LogicalName>Kumo.Assets.OptiFineInstallerBridge.class</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\skinview3d.bundle.js">
+      <LogicalName>Kumo.Assets.skinview3d.bundle.js</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
