@@ -1,5 +1,7 @@
 # Kumo Craft Launcher / 库莫
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Kumo is a Windows Minecraft: Java Edition launcher built with WPF and .NET.
 
 Current stable version: `1.0`.
