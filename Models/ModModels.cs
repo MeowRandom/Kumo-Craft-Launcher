@@ -26,7 +26,8 @@ public sealed record ModFileChoice(
     long? Size,
     string Channel,
     DateTimeOffset? PublishedAt,
-    string SourceLabel)
+    string SourceLabel,
+    string? VersionId = null)
 {
     public string DateLabel => PublishedAt is { } published
         ? published.LocalDateTime.ToString("yyyy-MM-dd")
@@ -39,6 +40,18 @@ public sealed record ModFileChoice(
         : "大小未知";
 
     public string DetailLabel => $"{Channel} · {DateLabel} · {SizeLabel}";
+}
+
+public sealed record ModDependencyFile(
+    string Name,
+    string VersionName,
+    string FileName,
+    string Url,
+    string? Sha1,
+    long? Size,
+    string SourceLabel)
+{
+    public string DetailLabel => $"{VersionName} · {FileName} · {SourceLabel}";
 }
 
 public sealed class ModSearchHit : INotifyPropertyChanged

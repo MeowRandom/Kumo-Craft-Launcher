@@ -1579,6 +1579,36 @@ public partial class MainWindow : Window
         StartLoadedModsLookup(mods);
     }
 
+    private void ToggleLoadedMod_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadedModsVersion is null ||
+            (sender as Button)?.Tag is not InstalledModEntry mod)
+            return;
+
+        try
+        {
+            var modsDirectory = Path.Combine(
+                GetVersionGameDirectory(_loadedModsVersion.Id), "mods");
+            InstalledModService.SetEnabled(
+                Path.Combine(modsDirectory, mod.FileName), !mod.IsEnabled);
+            var mods = RefreshLoadedMods();
+            StartLoadedModsLookup(mods);
+        }
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            LogService.Warn($"修改 Mod 状态失败 {mod.FileName}：{ex.Message}");
+            MessageBox.Show(
+                this,
+                $"无法修改“{mod.PrimaryName}”的状态。\n\n" +
+                "如果游戏正在运行，请先完全退出游戏再重试。\n" +
+                ex.Message,
+                "修改 Mod 状态失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
     private IReadOnlyList<InstalledModEntry> RefreshLoadedMods()
     {
         if (_loadedModsVersion is null) return [];
@@ -1699,7 +1729,7 @@ public partial class MainWindow : Window
         var enabled = mods.Count(mod => mod.IsEnabled);
         LoadedModsCountText.Text = mods.Count == 0
             ? "0 个 Mod"
-            : $"{mods.Count} 个 Mod · {enabled} 个已启用 · {mods.Count - enabled} 个已禁用";
+            : $"{mods.Count} 个 Mod · {enabled} 个已启用 · {mods.Count - enabled} 个已关闭";
     }
 
     private void OpenLoadedModsDirectory_Click(object sender, RoutedEventArgs e)
@@ -2497,16 +2527,16 @@ public partial class MainWindow : Window
         HomeHeroImage.Source = versionIcon ?? LoadPackBitmap("Assets/logo-mark.png");
         HomeHeroArtFrame.Visibility =
             selected is null || versionIcon is null ? Visibility.Visible : Visibility.Collapsed;
-        HomeHeroArtFrame.Width = 256;
-        HomeHeroArtFrame.Height = 256;
-        HomeHeroArtFrame.Margin = new Thickness(0, 0, 50, 0);
+        HomeHeroArtFrame.Width = 160;
+        HomeHeroArtFrame.Height = 160;
+        HomeHeroArtFrame.Margin = new Thickness(0, 64, 50, 0);
         HomeHeroArtFrame.Padding = new Thickness(0);
         HomeHeroArtFrame.CornerRadius = new CornerRadius(0);
         HomeHeroArtFrame.Background = Brushes.Transparent;
         HomeHeroArtFrame.BorderBrush = Brushes.Transparent;
         HomeHeroArtFrame.BorderThickness = new Thickness(0);
         HomeHeroArtFrame.HorizontalAlignment = HorizontalAlignment.Right;
-        HomeHeroArtFrame.VerticalAlignment = VerticalAlignment.Center;
+        HomeHeroArtFrame.VerticalAlignment = VerticalAlignment.Top;
         HomeHeroImage.Margin = new Thickness(0);
         HomeHeroImage.Stretch = Stretch.Uniform;
         HomeHeroImage.Width = versionIcon is null ? double.NaN : 144;
@@ -4249,6 +4279,7 @@ public partial class MainWindow : Window
         }
 
         ResolvedModFile? file = null;
+        string? selectedVersionId = null;
         if (hit.ContentKind == ContentKind.Mod)
         {
             IReadOnlyList<ModFileChoice> choices;
@@ -4267,6 +4298,7 @@ public partial class MainWindow : Window
             }
             var choice = await ShowModVersionSelectionAsync(hit, choices);
             if (choice is null) return;
+            selectedVersionId = choice.VersionId;
             file = new ResolvedModFile(
                 choice.FileName,
                 choice.Url,
@@ -4309,6 +4341,24 @@ public partial class MainWindow : Window
             }
         }
         if (file is null) return;
+
+        IReadOnlyList<ModDependencyFile> dependencies = [];
+        if (hit.ContentKind == ContentKind.Mod)
+        {
+            dependencies = await ResolveModDependenciesAsync(
+                hit, target, selectedVersionId);
+            if (dependencies.Count > 0)
+            {
+                var proceed = await ConfirmInstallAsync(
+                    "下载 Mod 前置",
+                    $"“{hit.Title}”需要以下前置 Mod。确认后会先下载前置，再下载 Mod 本体。",
+                    file.FileName,
+                    "下载前置并继续",
+                    targetLabel: "Mod 文件",
+                    dependencies: dependencies);
+                if (!proceed) return;
+            }
+        }
 
         string preferredDirectory;
         try
@@ -4369,6 +4419,38 @@ public partial class MainWindow : Window
             await RunOperationAsync($"下载 {contentLabel} · {hit.Title}", async token =>
             {
                 var progress = new Progress<DownloadProgress>(UpdateDownloadProgress);
+                var destinationDirectory = Path.GetDirectoryName(destination)
+                                           ?? Settings.DataDirectory;
+                for (var index = 0; index < dependencies.Count; index++)
+                {
+                    var dependency = dependencies[index];
+                    var dependencyName = SanitizeModFileName(dependency.FileName, ".jar");
+                    var dependencyPath = Path.Combine(destinationDirectory, dependencyName);
+                    if (string.Equals(
+                            dependencyPath, destination, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    await _http.DownloadFileAsync(
+                        dependency.Url,
+                        dependencyPath,
+                        dependency.Sha1,
+                        dependency.Size,
+                        (received, total) =>
+                        {
+                            ((IProgress<DownloadProgress>)progress).Report(
+                                new DownloadProgress(
+                                    $"正在下载前置 {index + 1}/{dependencies.Count}",
+                                    1,
+                                    1,
+                                    dependencyName,
+                                    received,
+                                    total,
+                                    0,
+                                    null,
+                                    dependency.SourceLabel));
+                        },
+                        token,
+                        verifyExistingHash: true);
+                }
                 await _http.DownloadFileAsync(
                     file.Url,
                     destination,
@@ -4389,8 +4471,10 @@ public partial class MainWindow : Window
                     },
                     token,
                     verifyExistingHash: true);
-                hit.Status = "已下载";
-                GlobalStatusText.Text = $"{hit.Title} 已保存到 {destination}";
+                hit.Status = dependencies.Count > 0 ? "已下载（含前置）" : "已下载";
+                GlobalStatusText.Text = dependencies.Count > 0
+                    ? $"{hit.Title} 和 {dependencies.Count} 个前置已保存到 {destinationDirectory}"
+                    : $"{hit.Title} 已保存到 {destination}";
             });
         }
         catch (Exception ex)
@@ -4405,6 +4489,53 @@ public partial class MainWindow : Window
                 hit.Status = hit.PrimaryActionLabel;
             RefreshModDetailInstallState(hit);
         }
+    }
+
+    private async Task<IReadOnlyList<ModDependencyFile>> ResolveModDependenciesAsync(
+        ModSearchHit hit,
+        ModInstallTarget target,
+        string? selectedVersionId)
+    {
+        if (target.Loader == ModLoader.Vanilla) return [];
+        try
+        {
+            if (hit.Source == ModSource.Modrinth &&
+                !string.IsNullOrWhiteSpace(selectedVersionId))
+            {
+                return await _modrinth.ResolveRequiredDependenciesAsync(
+                    selectedVersionId,
+                    target.BaseVersion,
+                    target.Loader,
+                    CancellationToken.None);
+            }
+
+            var slug = GetModrinthSlug(hit);
+            return string.IsNullOrWhiteSpace(slug)
+                ? []
+                : await _modrinth.ResolveRequiredDependenciesBySlugAsync(
+                    slug,
+                    target.BaseVersion,
+                    target.Loader,
+                    CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogService.Warn($"检测 Mod 前置失败 {hit.Title}：{ex.Message}");
+            return [];
+        }
+    }
+
+    private static string? GetModrinthSlug(ModSearchHit hit)
+    {
+        if (Uri.TryCreate(hit.ModrinthUrl, UriKind.Absolute, out var uri))
+        {
+            var slug = uri.Segments
+                .Select(segment => segment.Trim('/'))
+                .LastOrDefault(segment => !string.IsNullOrWhiteSpace(segment));
+            if (!string.IsNullOrWhiteSpace(slug))
+                return Uri.UnescapeDataString(slug);
+        }
+        return string.IsNullOrWhiteSpace(hit.Slug) ? null : hit.Slug.Trim('/');
     }
 
     private async Task InstallModpackFromCatalogAsync(
@@ -5196,7 +5327,9 @@ public partial class MainWindow : Window
         IReadOnlyList<InstalledVersionInfo>? targetVersions = null,
         InstalledVersionInfo? selectedTarget = null,
         string? loaderBaseVersion = null,
-        bool allowDisplayName = false)
+        bool allowDisplayName = false,
+        string targetLabel = "安装目标",
+        IReadOnlyList<ModDependencyFile>? dependencies = null)
     {
         if (_installConfirmation is not null || _operationCts is not null) return false;
         _confirmedInstallVersion = null;
@@ -5210,6 +5343,7 @@ public partial class MainWindow : Window
         _installConfirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         ConfirmTitleText.Text = title;
         ConfirmMessageText.Text = message;
+        ConfirmTargetLabel.Text = targetLabel;
         ConfirmTargetText.Text = target;
         ConfirmTargetText.Visibility = targetVersions is null ? Visibility.Visible : Visibility.Collapsed;
         ConfirmVersionCombo.Visibility = targetVersions is null ? Visibility.Collapsed : Visibility.Visible;
@@ -5217,6 +5351,12 @@ public partial class MainWindow : Window
         ConfirmVersionCombo.SelectedItem = targetVersions is null
             ? null
             : selectedTarget ?? targetVersions.FirstOrDefault();
+        ConfirmDependencySection.Visibility =
+            dependencies is { Count: > 0 } ? Visibility.Visible : Visibility.Collapsed;
+        ConfirmDependencyList.ItemsSource = dependencies;
+        ConfirmDependencyHint.Text = dependencies is { Count: > 0 }
+            ? $"共 {dependencies.Count} 个必需前置。已有文件会校验后跳过，不会重复下载。"
+            : "";
         ConfirmLoaderSection.Visibility = loaderBaseVersion is null
             ? Visibility.Collapsed
             : Visibility.Visible;

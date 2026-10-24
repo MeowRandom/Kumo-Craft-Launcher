@@ -539,6 +539,22 @@ var tests = new List<(string Name, Func<Task> Run)>
                 "Fabric metadata should be read from the installed JAR");
             Assert(mods[0].CoverImagePath is { } iconPath && File.Exists(iconPath),
                 "Embedded Mod icon should be extracted");
+
+            var enabledPath = Path.Combine(root, "enabled.jar");
+            var disabledPath = InstalledModService.SetEnabled(enabledPath, false);
+            Assert(disabledPath.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase) &&
+                   File.Exists(disabledPath),
+                "Closing a Mod must rename its JAR file");
+
+            var closedMods = InstalledModService.Scan(root, Path.Combine(root, "icons"));
+            Assert(closedMods.Any(item =>
+                    item.FileName == "enabled.jar.disabled" && !item.IsEnabled),
+                "A closed Mod must remain visible in the installed Mod list");
+
+            var restoredPath = InstalledModService.SetEnabled(disabledPath, true);
+            Assert(restoredPath.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) &&
+                   File.Exists(enabledPath),
+                "Enabling a Mod must restore its JAR file name");
         }
         finally
         {

@@ -4,7 +4,7 @@
 
 Kumo is a Windows Minecraft: Java Edition launcher built with WPF and .NET.
 
-Current stable version: `1.0`.
+Current stable version: `1.1`.
 
 ## Features
 

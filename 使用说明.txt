@@ -1,4 +1,4 @@
-库莫 Kumo 1.0 使用说明
+库莫 Kumo 1.1 使用说明
 
 运行方式
 1. 解压 Kumo Craft Launcher.zip。

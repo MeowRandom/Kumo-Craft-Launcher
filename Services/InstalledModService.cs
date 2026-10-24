@@ -42,6 +42,35 @@ public static class InstalledModService
             .ToList();
     }
 
+    public static string SetEnabled(string modPath, bool enabled)
+    {
+        if (!File.Exists(modPath))
+            throw new FileNotFoundException("找不到要修改的 Mod 文件。", modPath);
+
+        var isEnabled = modPath.EndsWith(".jar", StringComparison.OrdinalIgnoreCase);
+        var isDisabled = modPath.EndsWith(".jar.disabled", StringComparison.OrdinalIgnoreCase);
+        if (!isEnabled && !isDisabled)
+            throw new InvalidDataException("只能修改 JAR 或已关闭的 JAR Mod。");
+        if (isEnabled == enabled)
+            return modPath;
+
+        string destination;
+        if (enabled)
+        {
+            destination = modPath[..^".disabled".Length];
+        }
+        else
+        {
+            destination = modPath + ".disabled";
+        }
+
+        if (File.Exists(destination))
+            throw new IOException($"文件“{Path.GetFileName(destination)}”已经存在。");
+
+        File.Move(modPath, destination);
+        return destination;
+    }
+
     private static JarModMetadata ReadMetadata(string jarPath)
     {
         try

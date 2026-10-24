@@ -189,7 +189,7 @@
                         <StackPanel x:Name="SidebarSettingsText"
                                     Grid.Column="1" Margin="9,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="Kumo" FontSize="11" FontWeight="SemiBold" />
-                            <TextBlock Text="开发预览" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" />
+                            <TextBlock Text="正式版" FontSize="10" Foreground="{DynamicResource MutedTextBrush}" />
                         </StackPanel>
                     </Grid>
                 </Button>
@@ -499,12 +499,12 @@
                                            RenderOptions.BitmapScalingMode="HighQuality"
                                            SnapsToDevicePixels="True" />
                                     <Border x:Name="HomeHeroArtFrame"
-                                            Width="256" Height="256"
+                                            Width="160" Height="160"
                                             Background="Transparent"
                                             BorderThickness="0"
                                             HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            Margin="0,0,50,0"
+                                            VerticalAlignment="Top"
+                                            Margin="0,64,50,0"
                                             SnapsToDevicePixels="True">
                                         <Image x:Name="HomeHeroImage"
                                                Stretch="Uniform"
@@ -2303,7 +2303,8 @@
                                LineHeight="19" />
                     <Border Style="{StaticResource InsetCard}" Margin="0,18,0,0" Padding="14">
                         <StackPanel>
-                            <TextBlock Text="安装目标" Style="{StaticResource Caption}" FontSize="10" />
+                            <TextBlock x:Name="ConfirmTargetLabel" Text="安装目标"
+                                       Style="{StaticResource Caption}" FontSize="10" />
                             <Grid Margin="0,5,0,0">
                                 <TextBlock x:Name="ConfirmTargetText" Text=""
                                            FontSize="14" FontWeight="SemiBold" />
@@ -2312,6 +2313,52 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+                    <StackPanel x:Name="ConfirmDependencySection" Visibility="Collapsed"
+                                Margin="0,14,0,0">
+                        <TextBlock Text="需要下载的前置" Style="{StaticResource Caption}"
+                                   FontSize="10" />
+                        <Border Style="{StaticResource InsetCard}" Margin="0,7,0,0" Padding="0">
+                            <ScrollViewer MaxHeight="170"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          behaviors:SmoothScroll.IsEnabled="True">
+                                <ItemsControl x:Name="ConfirmDependencyList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="12,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Margin="0,0,12,0">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding DetailLabel}"
+                                                               Style="{StaticResource Caption}"
+                                                               FontSize="9"
+                                                               Margin="0,3,0,0"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Border Grid.Column="1"
+                                                        Style="{StaticResource SmallBadge}"
+                                                        Padding="7,3"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="前置" FontSize="9"
+                                                               Foreground="{DynamicResource AccentBrush}" />
+                                                </Border>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                        <TextBlock x:Name="ConfirmDependencyHint" Text=""
+                                   Style="{StaticResource Caption}"
+                                   FontSize="10" Margin="0,6,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
                     <StackPanel x:Name="ConfirmLoaderSection" Visibility="Collapsed" Margin="0,14,0,0">
                         <TextBlock Text="Mod 加载器" Style="{StaticResource Caption}" FontSize="10" />
                         <ComboBox x:Name="ConfirmLoaderKindCombo" Margin="0,6,0,0"
@@ -2702,10 +2749,24 @@
                                  behaviors:SmoothScroll.IsEnabled="True">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{DynamicResource ListItemBrush}"
-                                            BorderBrush="{DynamicResource BorderSoftBrush}"
-                                            BorderThickness="1" CornerRadius="10"
+                                    <Border BorderThickness="1" CornerRadius="10"
                                             Padding="12,9">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background"
+                                                        Value="{DynamicResource ListItemBrush}" />
+                                                <Setter Property="BorderBrush"
+                                                        Value="{DynamicResource BorderSoftBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                        <Setter Property="Background"
+                                                                Value="{DynamicResource DangerTintBrush}" />
+                                                        <Setter Property="BorderBrush"
+                                                                Value="{DynamicResource DangerBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="68" />
@@ -2744,11 +2805,58 @@
                                                            Foreground="{DynamicResource MutedTextBrush}"
                                                            Margin="0,4,0,0" />
                                             </StackPanel>
-                                            <Border Grid.Column="2" Style="{StaticResource SmallBadge}"
-                                                    Padding="9,4" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding StateLabel}" FontSize="10"
-                                                           Foreground="{DynamicResource AccentBrush}" />
-                                            </Border>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <Border Padding="9,4" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border"
+                                                               BasedOn="{StaticResource SmallBadge}">
+                                                            <Setter Property="Background"
+                                                                    Value="{DynamicResource BadgeSurfaceBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                                    <Setter Property="Background"
+                                                                            Value="{DynamicResource DangerTintBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding StateLabel}" FontSize="10">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground"
+                                                                        Value="{DynamicResource AccentBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                                        <Setter Property="Foreground"
+                                                                                Value="{DynamicResource DangerBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <Button Content="{Binding ToggleActionLabel}"
+                                                        Tag="{Binding}"
+                                                        Click="ToggleLoadedMod_Click"
+                                                        Margin="10,0,0,0">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button"
+                                                               BasedOn="{StaticResource GhostButton}">
+                                                            <Setter Property="Padding" Value="10,7" />
+                                                            <Setter Property="FontSize" Value="10" />
+                                                            <Setter Property="Foreground"
+                                                                    Value="{DynamicResource DangerBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                                                    <Setter Property="Foreground"
+                                                                            Value="{DynamicResource AccentBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

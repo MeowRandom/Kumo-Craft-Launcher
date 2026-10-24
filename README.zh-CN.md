@@ -4,7 +4,7 @@
 
 Kumo 是一个使用 WPF 和 .NET 开发的 Windows Minecraft Java 版启动器。
 
-当前稳定版本：`1.0`
+当前稳定版本：`1.1`
 
 ## 功能
 

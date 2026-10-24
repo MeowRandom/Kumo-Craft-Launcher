@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1
+
+- Added controls to close and re-enable individual Mods from the installed Mod list.
+- Added a prerequisite confirmation window before downloading Mods that require other projects.
+- Prerequisites are downloaded before the selected Mod and existing verified files are reused.
+- Marked the launcher as a formal release and refined the default home artwork layout.
+
 ## 1.0
 
 - Released Kumo as a self-contained Windows x64 single executable.

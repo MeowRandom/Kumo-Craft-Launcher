@@ -244,11 +244,80 @@ public sealed class ModrinthService
                         _ => "Alpha"
                     },
                     version.DatePublished,
-                    "Modrinth");
+                    "Modrinth",
+                    version.Id);
             })
             .Where(choice => choice is not null)
             .Cast<ModFileChoice>()
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<ModDependencyFile>> ResolveRequiredDependenciesAsync(
+        string rootVersionId,
+        string baseGameVersion,
+        ModLoader loader,
+        CancellationToken cancellationToken)
+    {
+        ModVersion root;
+        try
+        {
+            root = await _http.GetJsonAsync<ModVersion>(
+                $"{ApiRoot}/version/{Uri.EscapeDataString(rootVersionId)}",
+                cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            LogService.Warn($"读取 Modrinth 版本依赖失败：{ex.Message}");
+            return [];
+        }
+
+        var versions = await ResolveRequiredDependencyVersionsAsync(
+            root, baseGameVersion, loader, cancellationToken);
+        return versions
+            .Select(version =>
+            {
+                var file = version.Files.FirstOrDefault(item => item.Primary)
+                           ?? version.Files.FirstOrDefault();
+                if (file is null || string.IsNullOrWhiteSpace(file.Url))
+                    return null;
+                var safeName = Path.GetFileName(file.Filename);
+                if (string.IsNullOrWhiteSpace(safeName))
+                    safeName = version.Id + ".jar";
+                return new ModDependencyFile(
+                    version.Name,
+                    version.VersionNumber,
+                    safeName,
+                    file.Url,
+                    file.Hashes.Sha1,
+                    file.Size,
+                    "Modrinth");
+            })
+            .Where(item => item is not null)
+            .Cast<ModDependencyFile>()
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<ModDependencyFile>> ResolveRequiredDependenciesBySlugAsync(
+        string projectSlug,
+        string baseGameVersion,
+        ModLoader loader,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(projectSlug)) return [];
+        try
+        {
+            var root = await FindCompatibleVersionAsync(
+                projectSlug, baseGameVersion, loader, cancellationToken);
+            return root is null
+                ? []
+                : await ResolveRequiredDependenciesAsync(
+                    root.Id, baseGameVersion, loader, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidDataException)
+        {
+            LogService.Warn($"CurseForge 项目没有可用于检测前置的 Modrinth 条目：{ex.Message}");
+            return [];
+        }
     }
 
     public async Task<ModInstallResult> InstallAsync(
@@ -409,6 +478,62 @@ public sealed class ModrinthService
             .OrderBy(x => x.VersionType switch { "release" => 0, "beta" => 1, _ => 2 })
             .ThenByDescending(x => x.DatePublished)
             .FirstOrDefault();
+    }
+
+    private async Task<IReadOnlyList<ModVersion>> ResolveRequiredDependencyVersionsAsync(
+        ModVersion rootVersion,
+        string baseGameVersion,
+        ModLoader loader,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<ModVersion>();
+        var visitedProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(rootVersion.ProjectId))
+            visitedProjects.Add(rootVersion.ProjectId);
+        var queue = new Queue<ModVersion>();
+        queue.Enqueue(rootVersion);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            var required = current.Dependencies
+                .Where(dependency => dependency.DependencyType == "required");
+            foreach (var dependency in required)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!string.IsNullOrWhiteSpace(dependency.ProjectId) &&
+                    visitedProjects.Contains(dependency.ProjectId))
+                    continue;
+
+                ModVersion? version = null;
+                if (!string.IsNullOrWhiteSpace(dependency.VersionId))
+                {
+                    try
+                    {
+                        version = await _http.GetJsonAsync<ModVersion>(
+                            $"{ApiRoot}/version/{Uri.EscapeDataString(dependency.VersionId)}",
+                            cancellationToken);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        LogService.Warn(
+                            $"指定前置 {dependency.VersionId} 获取失败：{ex.Message}");
+                    }
+                }
+                if (version is null && !string.IsNullOrWhiteSpace(dependency.ProjectId))
+                {
+                    version = await FindCompatibleVersionAsync(
+                        dependency.ProjectId, baseGameVersion, loader, cancellationToken);
+                }
+                if (version is null) continue;
+                if (!string.IsNullOrWhiteSpace(version.ProjectId) &&
+                    !visitedProjects.Add(version.ProjectId))
+                    continue;
+
+                result.Add(version);
+                queue.Enqueue(version);
+            }
+        }
+        return result;
     }
 
     private static async Task<List<InstalledModRecord>> LoadMetadataAsync(

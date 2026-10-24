@@ -282,7 +282,8 @@ public sealed class CurseForgeService
                         _ => "Alpha"
                     },
                     file.UploadedAt,
-                    "CurseForge");
+                    "CurseForge",
+                    file.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
             })
             .ToList();
     }

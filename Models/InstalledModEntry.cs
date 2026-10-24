@@ -34,7 +34,9 @@ public sealed class InstalledModEntry : INotifyPropertyChanged
     public string? LocalName { get; }
     public string SearchQuery { get; }
     public string SizeLabel => FormatSize(SizeBytes);
-    public string StateLabel => IsEnabled ? "已启用" : "已禁用";
+    public bool IsDisabled => !IsEnabled;
+    public string StateLabel => IsEnabled ? "已启用" : "已关闭";
+    public string ToggleActionLabel => IsEnabled ? "关闭 Mod" : "启用 Mod";
     public string PrimaryName => FirstNonEmpty(ChineseName, LocalName, SearchQuery, FileName);
     public string Initial => PrimaryName[..1].ToUpperInvariant();
     public string DetailLabel =>
