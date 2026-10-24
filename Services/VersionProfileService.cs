@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using Kumo.Models;
 
@@ -340,6 +341,10 @@ public sealed class VersionProfileService
         var optiFineMarker = id.IndexOf("-OptiFine_", StringComparison.OrdinalIgnoreCase);
         if (optiFineMarker > 0) return id[..optiFineMarker];
 
+        var libraryBaseVersion = InferBaseVersionFromLibraries(profile);
+        if (!string.IsNullOrWhiteSpace(libraryBaseVersion))
+            return libraryBaseVersion;
+
         var assetId = profile.Obj("assetIndex")?.Str("id");
         var clientSha1 = profile.Obj("downloads")?.Obj("client")?.Str("sha1");
         var cacheRoot = Path.Combine(_dataDirectory, "cache", "version-dependencies");
@@ -356,6 +361,41 @@ public sealed class VersionProfileService
             if (string.Equals(assetId, cachedAssetId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(clientSha1, cachedClientSha1, StringComparison.OrdinalIgnoreCase))
                 return cachedId;
+        }
+        return null;
+    }
+
+    private static string? InferBaseVersionFromLibraries(JsonObject profile)
+    {
+        foreach (var library in profile.Arr("libraries")?.OfType<JsonObject>() ?? [])
+        {
+            var coordinate = library.Str("name");
+            if (string.IsNullOrWhiteSpace(coordinate)) continue;
+            var parts = coordinate.Split(':');
+            if (parts.Length < 3) continue;
+
+            if (parts[0].Equals("net.minecraftforge", StringComparison.OrdinalIgnoreCase) &&
+                parts[1] is "forge" or "fmlloader" or "fmlearlydisplay")
+            {
+                var match = Regex.Match(
+                    parts[2],
+                    @"^(?<minecraft>\d+\.\d+(?:\.\d+)?)-",
+                    RegexOptions.CultureInvariant);
+                if (match.Success) return match.Groups["minecraft"].Value;
+            }
+
+            if (!parts[0].Equals("net.neoforged", StringComparison.OrdinalIgnoreCase) ||
+                !parts[1].Equals("neoforge", StringComparison.OrdinalIgnoreCase))
+                continue;
+            var neoforge = parts[2].Split('.');
+            if (neoforge.Length < 2 ||
+                !int.TryParse(neoforge[0], out var major) ||
+                !int.TryParse(neoforge[1], out var minor))
+                continue;
+            if (major >= 21)
+                return minor == 0 ? $"1.{major}" : $"1.{major}.{minor}";
+            if (major == 20)
+                return $"1.20.{minor}";
         }
         return null;
     }
@@ -403,7 +443,9 @@ public sealed class VersionProfileService
                 return LibraryVersion("org.quiltmc:quilt-loader:");
             case ModLoader.Forge:
             {
-                var coordinateVersion = LibraryVersion("net.minecraftforge:forge:");
+                var coordinateVersion = LibraryVersion(
+                    "net.minecraftforge:forge:",
+                    "net.minecraftforge:fmlloader:");
                 if (!string.IsNullOrWhiteSpace(coordinateVersion))
                 {
                     var prefix = baseVersion + "-";

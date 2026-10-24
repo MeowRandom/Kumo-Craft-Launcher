@@ -42,6 +42,35 @@ public sealed class ModrinthService
         CancellationToken cancellationToken = default,
         ContentKind contentKind = ContentKind.Mod)
     {
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                return await SearchCoreAsync(
+                    query, gameVersion, loader, offset, limit,
+                    cancellationToken, contentKind);
+            }
+            catch (HttpRequestException ex) when (
+                attempt < 3 && IsTransientSearchError(ex))
+            {
+                var delay = TimeSpan.FromSeconds(attempt == 1 ? 1.5 : 3);
+                LogService.Warn(
+                    $"Modrinth 搜索暂时不可用，{delay.TotalSeconds:0.#} 秒后重试：{ex.Message}");
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+        throw new InvalidOperationException("Modrinth 搜索重试未产生结果。");
+    }
+
+    private async Task<ModSearchResult> SearchCoreAsync(
+        string query,
+        string? gameVersion,
+        ModLoader loader,
+        int offset,
+        int limit,
+        CancellationToken cancellationToken,
+        ContentKind contentKind)
+    {
         if (contentKind == ContentKind.Mod && loader == ModLoader.Vanilla)
             throw new InvalidOperationException("请先选择一个带 Mod 加载器的游戏版本。");
         var facets = new List<object>
@@ -68,6 +97,17 @@ public sealed class ModrinthService
             hit.Status = hit.PrimaryActionLabel;
         }
         return new ModSearchResult(response.Offset, response.Limit, response.TotalHits, response.Hits);
+    }
+
+    private static bool IsTransientSearchError(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current.Message.Contains(
+                    "searching projects", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     public async Task<string> GetProjectDescriptionAsync(

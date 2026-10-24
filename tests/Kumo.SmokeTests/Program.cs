@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -469,6 +470,11 @@ var tests = new List<(string Name, Func<Task> Run)>
              "kumoLoaderVersion":"26.3.0.95",
              "mainClass":"net.neoforged.fml.startup.Client","libraries":[]}
             """);
+        WriteProfile("The Winter Rescue", """
+            {"id":"The Winter Rescue",
+             "mainClass":"cpw.mods.bootstraplauncher.BootstrapLauncher",
+             "libraries":[{"name":"net.minecraftforge:fmlloader:1.20.1-47.4.0"}]}
+            """);
         try
         {
             var service = new VersionProfileService(
@@ -480,6 +486,10 @@ var tests = new List<(string Name, Func<Task> Run)>
                 "Forge loader version must be inferred from its Maven coordinate");
             Assert(installed.Single(item => item.Id == "Neo 生存").LoaderVersion == "26.3.0.95",
                 "NeoForge loader version must be read from saved metadata");
+            var legacyForgeModpack = installed.Single(item => item.Id == "The Winter Rescue");
+            Assert(legacyForgeModpack.BaseVersion == "1.20.1" &&
+                   legacyForgeModpack.LoaderVersion == "47.4.0",
+                "Legacy self-contained Forge modpacks must infer their Minecraft and loader versions");
 
             var matcher = typeof(Kumo.MainWindow).GetMethod(
                 "IsLoaderVersionInstalled",
@@ -1251,6 +1261,14 @@ var tests = new List<(string Name, Func<Task> Run)>
             "All-loader modpack queries must not pass a vanilla loader name");
         Assert(ModrinthService.GetLoaderFacets(ModLoader.Vanilla).Length == 0,
             "All-loader modpack queries must not pass a vanilla loader facet");
+        var transientErrorMethod = typeof(ModrinthService).GetMethod(
+            "IsTransientSearchError",
+            System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Static)!;
+        Assert((bool)transientErrorMethod.Invoke(
+                null,
+                [new HttpRequestException("Modrinth returned: searching projects")])!,
+            "Transient Modrinth project-search failures must be retried");
         return Task.CompletedTask;
     })),
     ("CurseForge and MC百科 contracts", () =>
