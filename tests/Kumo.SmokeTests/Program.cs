@@ -444,6 +444,72 @@ var tests = new List<(string Name, Func<Task> Run)>
             if (Directory.Exists(root)) Directory.Delete(root, true);
         }
     })),
+    ("Modpacks do not hide existing version names", () =>
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(), "kumo-modpack-visible-versions-" + Guid.NewGuid().ToString("N"));
+        var versionsRoot = Path.Combine(root, "versions");
+        void WriteProfile(string directory, string json)
+        {
+            var path = Path.Combine(versionsRoot, directory);
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, directory + ".json"), json);
+        }
+        WriteProfile("1.20.1", """
+            {"id":"1.20.1","kumoBaseVersion":"1.20.1","kumoDisplayName":"原版生存"}
+            """);
+        WriteProfile("1.20.1-Forge", """
+            {"id":"1.20.1-Forge","kumoBaseVersion":"1.20.1","kumoDisplayName":"机械生存",
+             "mainClass":"cpw.mods.bootstraplauncher.BootstrapLauncher",
+             "libraries":[{"name":"net.minecraftforge:forge:1.20.1-47.4.0:universal"}]}
+            """);
+        WriteProfile("1.20.1-Fabric", """
+            {"id":"1.20.1-Fabric","kumoBaseVersion":"1.20.1","kumoDisplayName":"魔法生存",
+             "mainClass":"net.fabricmc.loader.impl.launch.knot.KnotClient",
+             "libraries":[{"name":"net.fabricmc:fabric-loader:0.19.5"}]}
+            """);
+        WriteProfile("The Winter Rescue", """
+            {"id":"The Winter Rescue","kumoBaseVersion":"1.20.1",
+             "kumoModpack":{"name":"The Winter Rescue"},
+             "mainClass":"cpw.mods.bootstraplauncher.BootstrapLauncher",
+             "libraries":[{"name":"net.minecraftforge:forge:1.20.1-47.4.0:universal"}]}
+            """);
+        WriteProfile("auto-vanilla-dependency", """
+            {"id":"auto-vanilla-dependency","kumoBaseVersion":"1.20.1",
+             "kumoDependency":true}
+            """);
+        try
+        {
+            var service = new VersionProfileService(
+                root, new MinecraftService(new HttpService(), root));
+            var installed = service.GetInstalledVersions();
+            Assert(installed.Count == 4,
+                "A modpack must not hide explicit versions with the same base and loader");
+            var installedNames = installed
+                .Select(item => item.DisplayLabel)
+                .ToHashSet(StringComparer.Ordinal);
+            Assert(installedNames.SetEquals([
+                    "原版生存", "机械生存", "魔法生存", "The Winter Rescue · 1.20.1"
+                ]),
+                "Installing a modpack must preserve existing display names: " +
+                string.Join("、", installedNames));
+            Assert(installed.All(item => item.Id != "auto-vanilla-dependency"),
+                "Automatically downloaded dependencies must remain hidden");
+
+            Directory.Delete(Path.Combine(versionsRoot, "The Winter Rescue"), true);
+            var remaining = service.GetInstalledVersions();
+            Assert(remaining.Count == 3 &&
+                   remaining.Select(item => item.DisplayLabel).ToHashSet().SetEquals([
+                       "原版生存", "机械生存", "魔法生存"
+                   ]),
+                "Deleting a modpack must leave all original versions and names intact");
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+        return Task.CompletedTask;
+    }),
     ("Installed loader version matching", () =>
     {
         var root = Path.Combine(

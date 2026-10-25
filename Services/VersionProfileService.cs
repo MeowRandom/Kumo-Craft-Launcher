@@ -52,6 +52,7 @@ public sealed class VersionProfileService
                     loaderVersion,
                     VersionMetadata.GetObject(json, VersionMetadata.Modpack)?.Str("name"),
                     VersionMetadata.GetString(json, VersionMetadata.DisplayName),
+                    VersionMetadata.GetBoolean(json, VersionMetadata.Dependency),
                     path));
             }
             catch (Exception ex)
@@ -60,17 +61,8 @@ public sealed class VersionProfileService
             }
         }
 
-        var modpackDependencies = parsed
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.ModpackName))
-            .SelectMany(entry => new[]
-            {
-                DependencyKey(entry.BaseVersion, entry.Loader),
-                DependencyKey(entry.BaseVersion, ModLoader.Vanilla)
-            })
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var result = parsed
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.ModpackName) ||
-                            !modpackDependencies.Contains(DependencyKey(entry.BaseVersion, entry.Loader)))
+            .Where(entry => !entry.IsDependency)
             .Select(entry => new InstalledVersionInfo
             {
                 Id = entry.Id,
@@ -323,9 +315,6 @@ public sealed class VersionProfileService
             DisplayName = instanceId
         };
 
-    private static string DependencyKey(string baseVersion, ModLoader loader) =>
-        $"{baseVersion}|{loader}";
-
     private string? InferBaseVersion(string id, JsonObject profile)
     {
         foreach (var prefix in new[] { "fabric-loader-", "quilt-loader-" })
@@ -407,6 +396,7 @@ public sealed class VersionProfileService
         string? LoaderVersion,
         string? ModpackName,
         string? DisplayName,
+        bool IsDependency,
         string Path);
 
     internal static string? InferLoaderVersion(
